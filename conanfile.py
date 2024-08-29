@@ -15,10 +15,10 @@ class VCMI(ConanFile):
         "minizip/[~1.2.12]",
     ]
     _clientRequires = [
-        "sdl/[~2.26.1 || >=2.0.20 <=2.22.0]", # versions in between have broken sound
-        "sdl_image/[~2.0.5]",
-        "sdl_mixer/[~2.0.4]",
-        "sdl_ttf/[~2.0.18]",
+        "sdl/[>=2.26.1 || >=2.0.20 <=2.22.0]", # versions in between have broken sound
+        "sdl_image/[>=2.0.5]",
+        "sdl_mixer/[>=2.0.4]",
+        "sdl_ttf/[>=2.0.18]",
         "onetbb/[^2021.3]",
         "xz_utils/[>=5.2.5]", # Required for innoextract
     ]
@@ -150,8 +150,13 @@ class VCMI(ConanFile):
         self.options["sdl"].sdl2main = self.settings.os != "iOS"
         self.options["sdl"].vulkan = False
 
+        # bmp, png are the only ones that needs to be supported
+        # pcx is also enabled since some people might use it due to H3 using format named 'pcx' (but unrelated to sdl_image pcx)
+        # dds support may be useful for HD edition, but not supported by sdl_image at the moment
+        self.options["sdl_image"].gif = False
         self.options["sdl_image"].lbm = False
         self.options["sdl_image"].pnm = False
+        self.options["sdl_image"].qoi = False
         self.options["sdl_image"].svg = False
         self.options["sdl_image"].tga = False
         self.options["sdl_image"].with_libjpeg = False
@@ -163,13 +168,12 @@ class VCMI(ConanFile):
         if is_apple_os(self):
             self.options["sdl_image"].imageio = True
 
+        # mp3, ogg and wav are the only ones that needs to be supported
+        # opus is nice to have, but fails to build in CI
+        # flac can be considered, but generally unnecessary
         self.options["sdl_mixer"].flac = False
-        self.options["sdl_mixer"].mad = False
-        self.options["sdl_mixer"].mikmod = False
         self.options["sdl_mixer"].modplug = False
-        self.options["sdl_mixer"].nativemidi = False
         self.options["sdl_mixer"].opus = False
-        self.options["sdl_mixer"].wav = False
 
         def _disableQtOptions(disableFlag, options):
             return " ".join([f"-{disableFlag}-{tool}" for tool in options])
