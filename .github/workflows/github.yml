@@ -17,19 +17,23 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: linux-qt6
             os: ubuntu-24.04
             test: 0
+            before_install: linux_qt6.sh
             preset: linux-clang-test
           - platform: linux
             os: ubuntu-24.04
             test: 1
+            before_install: linux_qt5.sh
             preset: linux-gcc-test
           - platform: linux
             os: ubuntu-20.04
             test: 0
+            before_install: linux_qt5.sh
             preset: linux-gcc-debug
           - platform: mac-intel
             os: macos-13
@@ -37,6 +41,7 @@ jobs:
             pack: 1
             pack_type: Release
             extension: dmg
+            before_install: macos.sh
             preset: macos-conan-ninja-release
             conan_profile: macos-intel
             conan_prebuilts: dependencies-mac-intel
@@ -48,6 +53,7 @@ jobs:
             pack: 1
             pack_type: Release
             extension: dmg
+            before_install: macos.sh
             preset: macos-arm-conan-ninja-release
             conan_profile: macos-arm
             conan_prebuilts: dependencies-mac-arm
@@ -59,6 +65,7 @@ jobs:
             pack: 1
             pack_type: Release
             extension: ipa
+            before_install: macos.sh
             preset: ios-release-conan-ccache
             conan_profile: ios-arm64
             conan_prebuilts: dependencies-ios
@@ -69,8 +76,9 @@ jobs:
             pack: 1
             pack_type: RelWithDebInfo
             extension: exe
+            before_install: msvc.sh
             preset: windows-msvc-release
-          - platform: mingw
+          - platform: mingw_x86_64
             os: ubuntu-24.04
             test: 0
             pack: 1
@@ -78,10 +86,11 @@ jobs:
             extension: exe
             cpack_args: -D CPACK_NSIS_EXECUTABLE=`which makensis`
             cmake_args: -G Ninja
+            before_install: mingw_x86_64.sh
             preset: windows-mingw-conan-linux
             conan_profile: mingw64-linux.jinja
-            conan_prebuilts: dependencies-mingw
-          - platform: mingw-32
+            conan_prebuilts: dependencies-mingw-x86-64
+          - platform: mingw_x86
             os: ubuntu-24.04
             test: 0
             pack: 1
@@ -89,24 +98,25 @@ jobs:
             extension: exe
             cpack_args: -D CPACK_NSIS_EXECUTABLE=`which makensis`
             cmake_args: -G Ninja
+            before_install: mingw_x86.sh
             preset: windows-mingw-conan-linux
             conan_profile: mingw32-linux.jinja
-            conan_prebuilts: dependencies-mingw-32
+            conan_prebuilts: dependencies-mingw-x86
           - platform: android-32
-            os: macos-14
+            os: ubuntu-24.04
             extension: apk
             preset: android-conan-ninja-release
-            conan_profile: android-32
-            conan_prebuilts: dependencies-android-32
-            conan_options: --conf tools.android:ndk_path=$ANDROID_NDK_ROOT
+            before_install: android.sh
+            conan_profile: android-32-ndk
+            conan_prebuilts: dependencies-android-armeabi-v7a
             artifact_platform: armeabi-v7a
           - platform: android-64
-            os: macos-14
+            os: ubuntu-24.04
             extension: apk
             preset: android-conan-ninja-release
-            conan_profile: android-64
-            conan_prebuilts: dependencies-android-64
-            conan_options: --conf tools.android:ndk_path=$ANDROID_NDK_ROOT
+            before_install: android.sh
+            conan_profile: android-64-ndk
+            conan_prebuilts: dependencies-android-arm64-v8a
             artifact_platform: arm64-v8a
     runs-on: ${{ matrix.os }}
     defaults:
@@ -120,7 +130,8 @@ jobs:
         submodules: recursive
 
     - name: Prepare CI
-      run: source '${{github.workspace}}/CI/${{matrix.platform}}/before_install.sh'
+      if: "${{ matrix.before_install != '' }}"
+      run: source '${{github.workspace}}/CI/before_install/${{matrix.before_install}}'
       env:
         VCMI_BUILD_PLATFORM: x64
 
@@ -355,11 +366,6 @@ jobs:
     steps:
         - uses: actions/checkout@v4
 
-        - uses: actions/setup-python@v5
-          if: "${{ matrix.conan_profile != '' }}"
-          with:
-            python-version: '3.10'
-
         - name: Ensure LF line endings
           run: |
             find . -path ./.git -prune -o -path ./AI/FuzzyLite -prune -o -path ./test/googletest \
@@ -370,4 +376,4 @@ jobs:
         - name: Validate JSON
           run: |
             sudo apt install python3-jstyleson
-            python3 CI/linux-qt6/validate_json.py
+            python3 CI/validate_json.py
